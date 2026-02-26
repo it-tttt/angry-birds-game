@@ -53,10 +53,15 @@ export class SlingshotScript extends Script {
       else if (pointer.phase === PointerPhase.Move && this.isDragging) {
         this.handlePointerMove(pointer);
       }
-      // 结束拖拽
+      // 结束拖拽（鼠标/触摸松开）
       else if (pointer.phase === PointerPhase.Up && this.isDragging) {
         this.handlePointerUp(pointer);
       }
+    } 
+    // 移动端触摸松开后，指针会从数组中移除
+    // 如果 pointers 为空但还在拖拽状态，说明手指刚松开
+    else if (this.isDragging) {
+      this.handlePointerUp(null);
     }
   }
 

@@ -106,8 +106,8 @@ export class GameScene {
     material.baseColor = new Color(0.4, 0.2, 0.1, 1); // 棕色
     renderer.setMaterial(material);
 
-    // 创建弹弓（限制5只小鸟）
-    this.slingshot = new Slingshot(this.engine, this.rootEntity, slingshotPos, 5);
+    // 创建弹弓（限制小鸟数量）
+    this.slingshot = new Slingshot(this.engine, this.rootEntity, slingshotPos, 3);
     
     // 设置游戏开始回调
     this.slingshot.setOnGameStart(() => {

@@ -1,6 +1,6 @@
 # Angry Birds Game
 
-一个使用 Galacean Engine 开发的类似愤怒的小鸟的移动端2D物理游戏。
+一个使用 Galacean Engine 和 Galacean Skills(https://github.com/ArimaKana/galacean-skills) 开发的类似愤怒的小鸟的移动端2D物理游戏。
 
 ## 🎮 游戏玩法
 
