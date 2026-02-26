@@ -8,7 +8,11 @@ import {
   PointerButton,
   PointerPhase,
   Camera,
-  Ray
+  Ray,
+  MeshRenderer,
+  PrimitiveMesh,
+  UnlitMaterial,
+  Color
 } from '@galacean/engine';
 import { Bird } from './Bird';
 import { GameState } from './Pig';
@@ -19,6 +23,7 @@ export class SlingshotScript extends Script {
   private isDragging: boolean = false;
   private dragStartPos: Vector3 = new Vector3();
   private currentDragPos: Vector3 = new Vector3();
+  private trajectoryEntities: Entity[] = []; // 轨迹点实体
 
   constructor(entity: Entity) {
     super(entity);
@@ -87,12 +92,28 @@ export class SlingshotScript extends Script {
 
     this.currentDragPos.copyFrom(worldPos);
     this.slingshot.updateDrag(worldPos);
+    
+    // 计算并显示轨迹
+    const slingshotPos = this.slingshot.getPosition();
+    const dragOffset = new Vector3();
+    Vector3.subtract(slingshotPos, this.currentDragPos, dragOffset);
+    
+    // 限制最大拖拽距离
+    const maxDrag = 3;
+    const dragDistance = dragOffset.length();
+    if (dragDistance > maxDrag) {
+      dragOffset.scale(maxDrag / dragDistance);
+    }
+    
+    const launchVelocity = dragOffset.scale(5);
+    this.updateTrajectory(this.slingshot.getBirdPosition(), launchVelocity);
   }
 
   private handlePointerUp(pointer: any) {
     if (!this.isDragging) return;
 
     this.isDragging = false;
+    this.clearTrajectory(); // 清除轨迹线
     
     // 计算发射速度
     const slingshotPos = this.slingshot.getPosition();
@@ -131,6 +152,64 @@ export class SlingshotScript extends Script {
     worldPos.z = 0;
 
     return worldPos;
+  }
+
+  /**
+   * 更新抛物线轨迹预览
+   * @param startPos 起始位置
+   * @param velocity 初始速度
+   */
+  private updateTrajectory(startPos: Vector3, velocity: Vector3) {
+    this.clearTrajectory();
+
+    const gravity = -9.81; // 重力加速度
+    const timeStep = 0.1; // 时间步长
+    const maxPoints = 10; // 最多显示25个点
+    
+    for (let i = 1; i <= maxPoints; i++) { // 从1开始，跳过起始点
+      const t = i * timeStep;
+      
+      // 抛物线运动公式: p = p0 + v*t + 0.5*a*t^2
+      const x = startPos.x + velocity.x * t;
+      const y = startPos.y + velocity.y * t + 0.5 * gravity * t * t;
+      const z = startPos.z + velocity.z * t;
+      
+      // 只有当点明确低于地面时才停止（地面在y=-0.5左右）
+      if (y < -1.0) {
+        break;
+      }
+      
+      // 如果飞得太远，停止绘制
+      if (Math.abs(x) > 30) {
+        break;
+      }
+      
+      // 创建轨迹点
+      const dotEntity = this.entity.createChild(`trajectory_${i}`);
+      dotEntity.transform.setPosition(x, y, z);
+      dotEntity.transform.setScale(0.1, 0.1, 0.1);
+      
+      const renderer = dotEntity.addComponent(MeshRenderer);
+      renderer.mesh = PrimitiveMesh.createSphere(this.engine, 0.5);
+      const material = new UnlitMaterial(this.engine);
+      
+      // 轨迹点颜色从白色渐变到透明
+      const alpha = 1 - (i / maxPoints);
+      material.baseColor = new Color(1, 1, 1, alpha);
+      renderer.setMaterial(material);
+      
+      this.trajectoryEntities.push(dotEntity);
+    }
+  }
+
+  /**
+   * 清除轨迹线
+   */
+  private clearTrajectory() {
+    for (const entity of this.trajectoryEntities) {
+      entity.destroy();
+    }
+    this.trajectoryEntities = [];
   }
 }
 
