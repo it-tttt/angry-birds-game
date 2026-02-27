@@ -223,12 +223,20 @@ export class Slingshot {
   private birdsUsed: number = 0;
   private maxBirds: number = 5; // 最多5只小鸟
   private onGameStart?: () => void;
+  private rubberBandLeft: Entity | null = null; // 左侧橡皮筋
+  private rubberBandRight: Entity | null = null; // 右侧橡皮筋
+  private leftAnchor: Vector3; // 左侧固定点
+  private rightAnchor: Vector3; // 右侧固定点
 
   constructor(engine: WebGLEngine, parent: Entity, position: Vector3, maxBirds: number = 5) {
     this.engine = engine;
     this.rootEntity = parent;
     this.position = position;
     this.maxBirds = maxBirds;
+
+    // 设置橡皮筋的固定点（弹弓两侧）
+    this.leftAnchor = new Vector3(position.x - 0.3, position.y + 0.3, position.z);
+    this.rightAnchor = new Vector3(position.x + 0.3, position.y + 0.3, position.z);
 
     // 创建控制实体用于处理输入
     this.controlEntity = parent.createChild('slingshotControl');
@@ -247,6 +255,9 @@ export class Slingshot {
 
   private createBird() {
     this.bird = new Bird(this.engine, this.rootEntity, this.position.clone());
+    // 显示橡皮筋并更新到初始位置
+    this.showRubberBands();
+    this.updateRubberBands(this.position);
   }
 
   public canLaunch(): boolean {
@@ -287,10 +298,16 @@ export class Slingshot {
     const newPos = new Vector3();
     Vector3.add(this.position, offset, newPos);
     this.bird.getEntity().transform.position = newPos;
+
+    // 更新橡皮筋
+    this.updateRubberBands(newPos);
   }
 
   public launch(velocity: Vector3) {
     if (!this.bird || this.bird.isLaunched()) return;
+
+    // 隐藏橡皮筋
+    this.hideRubberBands();
 
     // 第一次发射时，设置游戏就绪状态
     if (this.birdsUsed === 0) {
@@ -367,5 +384,95 @@ export class Slingshot {
 
   public getBirdsRemaining(): number {
     return this.maxBirds - this.birdsUsed;
+  }
+
+  /**
+   * 更新橡皮筋位置
+   */
+  private updateRubberBands(birdPos: Vector3) {
+    // 如果橡皮筋不存在，创建它们
+    if (!this.rubberBandLeft) {
+      this.createRubberBands();
+    }
+
+    // 更新左侧橡皮筋
+    if (this.rubberBandLeft) {
+      this.updateRubberBand(this.rubberBandLeft, this.leftAnchor, birdPos);
+    }
+
+    // 更新右侧橡皮筋
+    if (this.rubberBandRight) {
+      this.updateRubberBand(this.rubberBandRight, this.rightAnchor, birdPos);
+    }
+  }
+
+  /**
+   * 创建橡皮筋实体
+   */
+  private createRubberBands() {
+    // 创建左侧橡皮筋
+    this.rubberBandLeft = this.rootEntity.createChild('rubberBandLeft');
+    const leftRenderer = this.rubberBandLeft.addComponent(MeshRenderer);
+    leftRenderer.mesh = PrimitiveMesh.createCylinder(this.engine, 0.02, 0.02, 1, 8);
+    const leftMaterial = new UnlitMaterial(this.engine);
+    leftMaterial.baseColor = new Color(0.3, 0.15, 0.05, 1); // 棕色
+    leftRenderer.setMaterial(leftMaterial);
+
+    // 创建右侧橡皮筋
+    this.rubberBandRight = this.rootEntity.createChild('rubberBandRight');
+    const rightRenderer = this.rubberBandRight.addComponent(MeshRenderer);
+    rightRenderer.mesh = PrimitiveMesh.createCylinder(this.engine, 0.02, 0.02, 1, 8);
+    const rightMaterial = new UnlitMaterial(this.engine);
+    rightMaterial.baseColor = new Color(0.3, 0.15, 0.05, 1); // 棕色
+    rightRenderer.setMaterial(rightMaterial);
+  }
+
+  /**
+   * 更新单根橡皮筋的位置和旋转
+   */
+  private updateRubberBand(band: Entity, anchor: Vector3, target: Vector3) {
+    // 计算方向向量
+    const direction = new Vector3();
+    Vector3.subtract(target, anchor, direction);
+    const length = direction.length();
+    
+    // 计算中点位置（圆柱体的中心）
+    const midPoint = new Vector3();
+    Vector3.add(anchor, target, midPoint);
+    midPoint.scale(0.5);
+    band.transform.position = midPoint;
+    
+    // 设置缩放（Y轴是圆柱体的高度方向）
+    band.transform.setScale(1, length, 1);
+
+    // 计算旋转角度
+    // 圆柱体默认沿Y轴向上(0,1,0)，需要旋转到指向target的方向
+    // 在2D平面(z=0)上，只需要绕Z轴旋转
+    const angle = Math.atan2(direction.x, direction.y) * (180 / Math.PI);
+    band.transform.setRotation(0, 0, -angle); // 注意负号，修正X轴方向
+  }
+
+  /**
+   * 隐藏橡皮筋
+   */
+  private hideRubberBands() {
+    if (this.rubberBandLeft) {
+      this.rubberBandLeft.isActive = false;
+    }
+    if (this.rubberBandRight) {
+      this.rubberBandRight.isActive = false;
+    }
+  }
+
+  /**
+   * 显示橡皮筋
+   */
+  private showRubberBands() {
+    if (this.rubberBandLeft) {
+      this.rubberBandLeft.isActive = true;
+    }
+    if (this.rubberBandRight) {
+      this.rubberBandRight.isActive = true;
+    }
   }
 }
